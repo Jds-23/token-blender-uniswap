@@ -4,12 +4,12 @@ import { CurrencyAmount, Percent, Currency, TradeType } from '@uniswap/sdk-core'
 import { Trade as V2Trade } from '@uniswap/v2-sdk'
 import { Trade as V3Trade } from '@uniswap/v3-sdk'
 import { useCallback, useMemo } from 'react'
-import { SWAP_ROUTER_ADDRESSES, V2_ROUTER_ADDRESS } from '../constants/addresses'
-import { useTransactionAdder, useHasPendingApproval } from '../state/transactions/hooks'
+import { BLEND_ADDRESS, SWAP_ROUTER_ADDRESSES, V2_ROUTER_ADDRESS } from '../constants/addresses'
+import { useTransactionAdder, useHasPendingApproval,useHasPendingApprovalArr } from '../state/transactions/hooks'
 import { calculateGasMargin } from '../utils/calculateGasMargin'
-import { useTokenContract } from './useContract'
+import { useTokenContract, useTokenContractArr } from './useContract'
 import { useActiveWeb3React } from './web3'
-import { useTokenAllowance } from './useTokenAllowance'
+import { useTokenAllowance, useTokenAllowanceArr } from './useTokenAllowance'
 
 export enum ApprovalState {
   UNKNOWN = 'UNKNOWN',
@@ -101,6 +101,90 @@ export function useApproveCallback(
 
   return [approvalState, approve]
 }
+export function useApproveCallbackArr(
+  amountToApproveArr: (CurrencyAmount<Currency> | undefined)[],
+  spender?: string
+): [ApprovalState[], (i:number) => Promise<void>] {
+  const { account, chainId } = useActiveWeb3React()
+  const tokenArr = (amountToApproveArr.map(amountToApprove=>amountToApprove?.currency?.isToken ? amountToApprove.currency : undefined))
+  const currentAllowanceArr = useTokenAllowanceArr(tokenArr, account ?? undefined, spender)
+  const pendingApprovalArr = useHasPendingApprovalArr(tokenArr.map(token =>token?.address), spender)
+
+  // check the current approval status
+  const approvalStateArr: ApprovalState[] = useMemo(() => {
+    return amountToApproveArr.map((amountToApprove,i)=>{if (!amountToApprove || !spender) {
+      return ApprovalState.UNKNOWN}
+    if (amountToApprove.currency.isNative) return ApprovalState.APPROVED
+    // we might not have enough data to know whether or not we need to approve
+    if (!currentAllowanceArr[i]) {
+      return ApprovalState.UNKNOWN}
+
+    // amountToApprove will be defined if currentAllowance is
+    return currentAllowanceArr[i]?.lessThan(amountToApprove)
+      ? pendingApprovalArr[i]
+        ? ApprovalState.PENDING
+        : ApprovalState.NOT_APPROVED
+      : ApprovalState.APPROVED})
+  }, [amountToApproveArr, currentAllowanceArr, pendingApprovalArr, spender])
+
+  const tokenContractArr = useTokenContractArr(tokenArr.map(token =>token?.address))
+  const addTransaction = useTransactionAdder()
+
+  const approve = useCallback(async (i:number): Promise<void> => {
+    if (approvalStateArr[i] !== ApprovalState.NOT_APPROVED) {
+      console.error('approve was called unnecessarily')
+      return
+    }
+    if (!chainId) {
+      console.error('no chainId')
+      return
+    }
+
+    if (!tokenArr[i]) {
+      console.error('no token')
+      return
+    }
+
+    if (!tokenContractArr[i]) {
+      console.error('tokenContract is null')
+      return
+    }
+
+    if (!amountToApproveArr[i]) {
+      console.error('missing amount to approve')
+      return
+    }
+
+    if (!spender) {
+      console.error('no spender')
+      return
+    }
+
+    let useExact = false
+    const estimatedGas = await tokenContractArr[i].estimateGas.approve(spender, MaxUint256).catch(() => {
+      // general fallback for tokens who restrict approval amounts
+      useExact = true
+      return tokenContractArr[i].estimateGas.approve(spender, amountToApproveArr[i]?.quotient.toString()+"")
+    })
+
+    return tokenContractArr[i]
+      .approve(spender, useExact ? amountToApproveArr[i]?.quotient.toString()+"" : MaxUint256, {
+        gasLimit: calculateGasMargin(chainId, estimatedGas),
+      })
+      .then((response: TransactionResponse) => {
+        addTransaction(response, {
+          summary: 'Approve ' + amountToApproveArr[i]?.currency.symbol,
+          approval: { tokenAddress: tokenArr[i]?.address+"", spender },
+        })
+      })
+      .catch((error: Error) => {
+        console.debug('Failed to approve token', error)
+        throw error
+      })
+  }, [approvalStateArr, tokenArr, tokenContractArr, amountToApproveArr, spender, addTransaction, chainId])
+
+  return [approvalStateArr,approve]
+}
 
 // wraps useApproveCallback in the context of a swap
 export function useApproveCallbackFromTrade(
@@ -121,6 +205,24 @@ export function useApproveCallbackFromTrade(
         : trade instanceof V3Trade
         ? v3SwapRouterAddress
         : undefined
+      : undefined
+  )
+}
+
+
+export function useApproveCallbackFromBlendArr(
+  tradeArr: (V2Trade<Currency, Currency, TradeType> | undefined)[],
+  allowedSlippage: Percent
+) {
+  const { chainId } = useActiveWeb3React()
+  const amountToApproveArr = useMemo(
+    () => tradeArr.map(trade=>(trade && trade.inputAmount.currency.isToken ? trade.maximumAmountIn(allowedSlippage) : undefined)),
+    [tradeArr, allowedSlippage]
+  )
+  return useApproveCallbackArr(
+    amountToApproveArr,
+    chainId
+      ?  BLEND_ADDRESS
       : undefined
   )
 }

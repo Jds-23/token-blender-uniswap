@@ -8,7 +8,7 @@ import { abi as QuoterABI } from '@uniswap/v3-periphery/artifacts/contracts/lens
 import { abi as V2MigratorABI } from '@uniswap/v3-periphery/artifacts/contracts/V3Migrator.sol/V3Migrator.json'
 import { abi as IUniswapV2Router02ABI } from '@uniswap/v2-periphery/build/IUniswapV2Router02.json'
 import { abi as MulticallABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/UniswapInterfaceMulticall.sol/UniswapInterfaceMulticall.json'
-
+import BLENDER_ABI from '../abis/ApeBlenderImpl.json'
 import ARGENT_WALLET_DETECTOR_ABI from 'abis/argent-wallet-detector.json'
 import GOVERNOR_BRAVO_ABI from 'abis/governor-bravo.json'
 import ENS_PUBLIC_RESOLVER_ABI from 'abis/ens-public-resolver.json'
@@ -26,6 +26,7 @@ import {
   MERKLE_DISTRIBUTOR_ADDRESS,
   MULTICALL_ADDRESS,
   V2_ROUTER_ADDRESS,
+  BLEND_ADDRESS,
   ENS_REGISTRAR_ADDRESSES,
   GOVERNANCE_ALPHA_V0_ADDRESSES,
   GOVERNANCE_ALPHA_V1_ADDRESSES,
@@ -63,12 +64,40 @@ export function useContract<T extends Contract = Contract>(
   }, [addressOrAddressMap, ABI, library, chainId, withSignerIfPossible, account]) as T
 }
 
+export function useContractArr<T extends Contract[] = Contract[]>(
+  addressOrAddressMapArr: (string | { [chainId: number]: string } | undefined)[],
+  ABI: any,
+  withSignerIfPossible = true
+): T {
+  const { library, account, chainId } = useActiveWeb3React()
+
+  return useMemo(() => {
+    return addressOrAddressMapArr.map((addressOrAddressMap) => {
+      if (!addressOrAddressMap || !ABI || !library || !chainId) return null
+      let address: string | undefined | null
+      if (typeof addressOrAddressMap === 'string') address = addressOrAddressMap
+      else address = addressOrAddressMap[chainId]
+      if (!address) return null
+      try {
+        return getContract(address, ABI, library, withSignerIfPossible && account ? account : undefined)
+      } catch (error) {
+        console.error('Failed to get contract', error)
+        return null
+      }
+    })
+  }, [addressOrAddressMapArr, ABI, library, chainId, withSignerIfPossible, account]) as T
+}
+
 export function useV2MigratorContract() {
   return useContract<V3Migrator>(V3_MIGRATOR_ADDRESSES, V2MigratorABI, true)
 }
 
 export function useTokenContract(tokenAddress?: string, withSignerIfPossible?: boolean) {
   return useContract<Erc20>(tokenAddress, ERC20_ABI, withSignerIfPossible)
+}
+
+export function useTokenContractArr(tokenAddressArr: (string | undefined)[], withSignerIfPossible?: boolean) {
+  return useContractArr<Erc20[]>(tokenAddressArr, ERC20_ABI, withSignerIfPossible)
 }
 
 export function useWETHContract(withSignerIfPossible?: boolean) {
@@ -91,6 +120,12 @@ export function useENSResolverContract(address: string | undefined, withSignerIf
 export function useBytes32TokenContract(tokenAddress?: string, withSignerIfPossible?: boolean): Contract | null {
   return useContract(tokenAddress, ERC20_BYTES32_ABI, withSignerIfPossible)
 }
+export function useBytes32TokenContractArr(
+  tokenAddressArr: (string | undefined)[],
+  withSignerIfPossible?: boolean
+): (Contract | null)[] {
+  return useContractArr(tokenAddressArr, ERC20_BYTES32_ABI, withSignerIfPossible)
+}
 
 export function useEIP2612Contract(tokenAddress?: string): Contract | null {
   return useContract(tokenAddress, EIP_2612, false)
@@ -102,6 +137,9 @@ export function usePairContract(pairAddress?: string, withSignerIfPossible?: boo
 
 export function useV2RouterContract(): Contract | null {
   return useContract(V2_ROUTER_ADDRESS, IUniswapV2Router02ABI, true)
+}
+export function useBlendContract(): Contract | null {
+  return useContract(BLEND_ADDRESS, BLENDER_ABI, true)
 }
 
 export function useMulticall2Contract() {

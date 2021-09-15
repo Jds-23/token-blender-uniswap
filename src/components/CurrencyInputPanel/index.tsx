@@ -165,6 +165,7 @@ interface CurrencyInputPanelProps {
   disableNonToken?: boolean
   renderBalance?: (amount: CurrencyAmount<Currency>) => ReactNode
   locked?: boolean
+  disabled?: boolean
 }
 
 export default function CurrencyInputPanel({
@@ -186,6 +187,7 @@ export default function CurrencyInputPanel({
   pair = null, // used for double token logo
   hideInput = false,
   locked = false,
+  disabled = false,
   ...rest
 }: CurrencyInputPanelProps) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -212,7 +214,7 @@ export default function CurrencyInputPanel({
       <Container hideInput={hideInput}>
         <InputRow style={hideInput ? { padding: '0', borderRadius: '8px' } : {}} selected={!onCurrencySelect}>
           <CurrencySelect
-            visible={currency !== null}
+            visible={true}
             selected={!!currency}
             hideInput={hideInput}
             className="open-currency-select-button"
@@ -251,6 +253,7 @@ export default function CurrencyInputPanel({
           {!hideInput && (
             <>
               <NumericalInput
+                disabled={disabled}
                 className="token-amount-input"
                 value={value}
                 onUserInput={(val) => {

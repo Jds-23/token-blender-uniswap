@@ -197,6 +197,7 @@ export default function Swap({ history }: RouteComponentProps) {
 
   // check whether the user has approved the router on the input token
   const [approvalState, approveCallback] = useApproveCallbackFromTrade(trade, allowedSlippage)
+  console.log(approvalState)
   const {
     state: signatureState,
     signatureData,
@@ -354,7 +355,7 @@ export default function Swap({ history }: RouteComponentProps) {
   const swapIsUnsupported = useIsSwapUnsupported(currencies[Field.INPUT], currencies[Field.OUTPUT])
 
   const priceImpactTooHigh = priceImpactSeverity > 3 && !isExpertMode
-
+    console.log(approvalState)
   return (
     <>
       <TokenWarningModal

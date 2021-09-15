@@ -100,6 +100,28 @@ export function useHasPendingApproval(tokenAddress: string | undefined, spender:
     [allTransactions, spender, tokenAddress]
   )
 }
+// returns whether a token has a pending approval transaction
+export function useHasPendingApprovalArr(tokenAddressArr: (string | undefined)[], spender: string | undefined): boolean[] {
+  const allTransactions = useAllTransactions()
+  return useMemo(
+    () =>tokenAddressArr.map(tokenAddress=>
+      typeof tokenAddress === 'string' &&
+      typeof spender === 'string' &&
+      Object.keys(allTransactions).some((hash) => {
+        const tx = allTransactions[hash]
+        if (!tx) return false
+        if (tx.receipt) {
+          return false
+        } else {
+          const approval = tx.approval
+          if (!approval) return false
+          return approval.spender === spender && approval.tokenAddress === tokenAddress && isTransactionRecent(tx)
+        }
+      })
+      ),
+    [allTransactions, spender, tokenAddressArr]
+  )
+}
 
 // watch for submissions to claim
 // return null if not done loading, return undefined if not found

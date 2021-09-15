@@ -12,7 +12,13 @@ import { isAddress } from '../utils'
 import { TokenAddressMap, useUnsupportedTokenList } from './../state/lists/hooks'
 
 import { useActiveWeb3React } from './web3'
-import { useBytes32TokenContract, useTokenContract } from './useContract'
+import {
+  useBytes32TokenContract,
+  useBytes32TokenContractArr,
+  useTokenContract,
+  useTokenContractArr,
+} from './useContract'
+import { BlendInput } from 'state/blend/reducer'
 
 // reduce token map into standard address <-> Token mapping, optionally include user added tokens
 function useTokensFromMap(tokenMap: TokenAddressMap, includeUserAdded: boolean): { [address: string]: Token } {
@@ -177,6 +183,55 @@ export function useToken(tokenAddress?: string | null): Token | undefined | null
   ])
 }
 
+export function useTokenArr(tokenAddressArr: (string | null | undefined)[]): (Token | undefined | null)[] {
+  const { chainId } = useActiveWeb3React()
+  const tokens = useAllTokens()
+
+  const addressArr = tokenAddressArr.map((tokenAddress) => isAddress(tokenAddress))
+
+  const tokenContractArr = useTokenContractArr(
+    addressArr.map((address) => (address ? address : undefined)),
+    false
+  )
+  const tokenContractBytes32Arr = useBytes32TokenContractArr(
+    addressArr.map((address) => (address ? address : undefined)),
+    false
+  )
+  const tokenArr: (Token | undefined)[] = addressArr.map((address) => (address ? tokens[address] : undefined))
+
+  // const tokenName = useSingleCallResult(token ? undefined : tokenContract, 'name', undefined, NEVER_RELOAD)
+  // const tokenNameBytes32 = useSingleCallResult(
+  //   token ? undefined : tokenContractBytes32,
+  //   'name',
+  //   undefined,
+  //   NEVER_RELOAD
+  // )
+  // const symbol = useSingleCallResult(token ? undefined : tokenContract, 'symbol', undefined, NEVER_RELOAD)
+  // const symbolBytes32 = useSingleCallResult(token ? undefined : tokenContractBytes32, 'symbol', undefined, NEVER_RELOAD)
+  // const decimals = useSingleCallResult(token ? undefined : tokenContract, 'decimals', undefined, NEVER_RELOAD)
+
+  return useMemo(() => {
+    return tokenArr.map((token, i) => {
+      if (token) return token
+      if (tokenAddressArr[i] === null) return null
+      return undefined
+    })
+  }, [
+    addressArr,
+    chainId,
+    // decimals.loading,
+    // decimals.result,
+    // symbol.loading,
+    // symbol.result,
+    // symbolBytes32.result,
+    tokenArr,
+    tokenAddressArr,
+    // tokenName.loading,
+    // tokenName.result,
+    // tokenNameBytes32.result,
+  ])
+}
+
 export function useCurrency(currencyId: string | null | undefined): Currency | null | undefined {
   const { chainId } = useActiveWeb3React()
   const isETH = currencyId?.toUpperCase() === 'ETH'
@@ -185,4 +240,17 @@ export function useCurrency(currencyId: string | null | undefined): Currency | n
   const weth = chainId ? WETH9_EXTENDED[chainId] : undefined
   if (weth?.address?.toLowerCase() === currencyId?.toLowerCase()) return weth
   return isETH ? extendedEther : token
+}
+
+export function useCurrencyArr(currencyIdArr: (string | undefined | null)[]): (Currency | null | undefined)[] {
+  const { chainId } = useActiveWeb3React()
+  const isETH = currencyIdArr.map((currencyId) => currencyId?.toUpperCase() === 'ETH')
+  const tokenArr = useTokenArr(currencyIdArr.map((currencyId, i) => (isETH[i] ? undefined : currencyId)))
+
+  const extendedEther = useMemo(() => (chainId ? ExtendedEther.onChain(chainId) : undefined), [chainId])
+  const weth = chainId ? WETH9_EXTENDED[chainId] : undefined
+  return tokenArr.map((token, i) => {
+    if (weth?.address?.toLowerCase() === currencyIdArr[i]?.toLowerCase()) return weth
+    return isETH[i] ? extendedEther : token
+  })
 }
