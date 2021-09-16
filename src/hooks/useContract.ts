@@ -50,7 +50,8 @@ export function useContract<T extends Contract = Contract>(
   const { library, account, chainId } = useActiveWeb3React()
 
   return useMemo(() => {
-    if (!addressOrAddressMap || !ABI || !library || !chainId) return null
+    if (!addressOrAddressMap || !ABI || !library || !chainId) {
+      return null}
     let address: string | undefined
     if (typeof addressOrAddressMap === 'string') address = addressOrAddressMap
     else address = addressOrAddressMap[chainId]

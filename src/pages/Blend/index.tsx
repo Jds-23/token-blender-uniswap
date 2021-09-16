@@ -35,7 +35,6 @@ const Blend = () => {
   const toggledVersion = useToggledVersion()
 
   const { onCurrencySelection, onChangeRecipient, addInputBox, removeInputBox, onUserInput } = useBlendActionHandlers()
-  const [isValid,setIsValid] = useState(false)
   const { independentField, typedValue, recipient } = useSwapState()
   const [approvalSubmitted, setApprovalSubmitted] = useState<boolean>(false)
   const {
@@ -128,6 +127,13 @@ const Blend = () => {
   // useEffect(() => {
 
   // },[])
+  const isValid=():boolean => {
+    for(let i=0;i<approvalStateArr.length;i++) {
+      if(approvalStateArr[i]!==ApprovalState.APPROVED&&v2TradeArr[i])
+      return false
+    }
+    return true
+  }
   return (
     <>
       <AppBody>
@@ -144,6 +150,7 @@ const Blend = () => {
                         <Trans>From (at most)</Trans>
                         //   : <Trans>From</Trans>
                       }
+                      key={i}
                       value={typedValues[i]}
                       showMaxButton={showMaxButton}
                       currency={inputCurrencyArr[i]}
@@ -238,7 +245,7 @@ const Blend = () => {
                 )
               })}
               <CurrencyInputPanel
-                value={outputAmount?.toSignificant(6)+""}
+                value={outputAmount?outputAmount?.toSignificant(6):""}
                 onUserInput={(e: string) => {
                   console.log(e)
                 }}
@@ -280,6 +287,8 @@ const Blend = () => {
                       //   // || priceImpactTooHigh
                       // }
                       // error={isValid && priceImpactSeverity > 2}
+                      error={!isValid}
+                      disabled={!isValid}
                     >
                       {/* <Text fontSize={16} fontWeight={500}>
                         {priceImpactTooHigh ? (
@@ -290,7 +299,7 @@ const Blend = () => {
                           <Trans>Swap</Trans>
                         )}
                       </Text> */}
-                      Blend
+                      {isValid()?"Blend":"..."}
                     </ButtonError>
             </div>
           </AutoColumn>
