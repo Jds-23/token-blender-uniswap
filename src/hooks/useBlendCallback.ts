@@ -8,16 +8,16 @@ import { parseUnits } from '@ethersproject/units';
 
 const useBlendCallback = (  
   tradeArr: (V2Trade<Currency, Currency, TradeType> | undefined)[], // trade to execute, required
-  // allowedSlippage: Percent, // in bips
   outputAmount: CurrencyAmount<Currency> | undefined
 ): [() => Promise<void>] => {
   const Contract = useBlendContract();
   const inputTokens=tradeArr.map(trade=>({
     token:trade?.inputAmount.currency.isToken&&trade?.inputAmount.currency.address,
     amount:trade?.inputAmount.toSignificant(6),
-    tokenToNativePath:trade?.route.path.map(token=>token.address)
+    tokenToNativePath:trade?.inputAmount.currency.isToken&&[trade?.inputAmount.currency.address,"0xc778417E063141139Fce010982780140Aa0cD5Ab"]
   }))
   const inputLPs:any=[];
+  const tokenToOutputPath=outputAmount?.currency.isToken?["0xc778417E063141139Fce010982780140Aa0cD5Ab",outputAmount?.currency.address]:[]
   let minOutputAmount:any;
   if(outputAmount===undefined) {
     minOutputAmount=null
@@ -39,20 +39,35 @@ console.log(minOutputAmount)
       console.error('no Input tokens')
       return
     }
-    console.log(inputTokens,
-      inputLPs,
-      minOutputAmount,)
-    return Contract?.swapTokensToNative(
+
+      if(outputAmount?.currency.isNative)
+      {
+        return Contract?.swapTokensToNative(
+          inputTokens,
+          inputLPs,
+          0,
+        ).then((response: TransactionResponse) => {
+          console.log(response)
+        })
+        .catch((error: Error) => {
+          console.log('Failed to blend', error)
+          // throw error
+        }) 
+      }
+console.log("...hey")
+debugger
+    return Contract?.swapTokensToToken(
       inputTokens,
       inputLPs,
+      tokenToOutputPath,
       0,
     ).then((response: TransactionResponse) => {
       console.log(response)
     })
     .catch((error: Error) => {
       console.log('Failed to blend', error)
-      throw error
-    }) 
+      // throw error
+    })
   },[Contract,
     inputTokens,
     inputLPs,

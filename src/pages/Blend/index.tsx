@@ -134,6 +134,7 @@ const Blend = () => {
     }
     return true
   }
+  console.log(v2TradeArr)
   return (
     <>
       <AppBody>

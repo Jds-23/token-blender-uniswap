@@ -14,7 +14,7 @@ export const MULTICALL_ADDRESS: AddressMap = {
 }
 export const V2_FACTORY_ADDRESSES: AddressMap = constructSameAddressMap(V2_FACTORY_ADDRESS)
 export const V2_ROUTER_ADDRESS: AddressMap = constructSameAddressMap('0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D')
-export const BLEND_ADDRESS = '0x8c5833D81B8a645f375099fB9db02aA9d7702234'
+export const BLEND_ADDRESS = '0xa6cE8bA770b60873b11b7161EeEd119E7BAc17B0'
 /**
  * The oldest V0 governance address
  */
